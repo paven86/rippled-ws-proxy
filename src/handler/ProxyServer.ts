@@ -63,6 +63,15 @@ class ProxyServer {
     })
   }
 
+  addUplinkServer (type: string, uri: string): void {
+    UplinkServers.push({
+      type: type,
+      endpoint: uri,
+      healthy: false,
+      errors: 0
+    })
+  }
+
   updateUplinkServer (uplink: string, action: string): void {
     UplinkServers.filter(s => {
       return crypto.createHash('md5').update(s.endpoint).digest('hex') === uplink

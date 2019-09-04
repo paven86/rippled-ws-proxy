@@ -25,6 +25,19 @@ class HttpServer {
       }
     })
 
+    app.get('/add-uplink/:type/:proto/:uri/:hash', (req: Request, res: Response) => {
+      if (['basic', 'priority'].indexOf(req.params.type) > -1 && ['ws', 'wss'].indexOf(req.params.proto) > -1) {
+        const uri = req.params.proto + '://' + req.params.uri + '/#' + req.params.hash
+        proxy.addUplinkServer(req.params.type, uri)
+        const newUplink = proxy.getUplinkServers().filter(s => {
+          return s.type === req.params.type && s.endpoint === uri
+        })
+        res.json({params: req.params, uplink: newUplink})
+      } else {
+        res.json({error: true})
+      }
+    })
+
     app.get('/status', (req: Request, res: Response) => {
       log.extend('Admin')('-- ADMIN CALL --')
       res.json({
