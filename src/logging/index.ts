@@ -2,7 +2,7 @@
 
 // import assert from 'assert'
 import Debug from 'debug'
-const log = Debug('app').extend('logging')
+const log = Debug('app')
 
 const {Logging} = require('@google-cloud/logging')
 const logging = new Logging({projectId: 'xrpledgerdata'})

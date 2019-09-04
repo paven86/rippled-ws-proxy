@@ -2,7 +2,7 @@
 
 import Debug from 'debug'
 import WebSocket from 'ws'
-const log = Debug('app').extend('UplinkClient')
+const log = Debug('app')
 import {Client} from './types'
 import io from '@pm2/io'
 
@@ -12,7 +12,7 @@ const metrics = {
 
 class UplinkClient extends WebSocket {
   private closedOnPurpose: boolean = false
-  private clientState: Client
+  private clientState: Client | undefined
   private id: number = 0
   private connectTimeout: any
   private pingInterval: any
@@ -41,8 +41,8 @@ class UplinkClient extends WebSocket {
 
 
       log('UplinkClient connected to ', endpoint)
-      log('Subscriptions to replay ', this.clientState.uplinkSubscriptions.length)
-      this.clientState.uplinkSubscriptions.forEach((s: any): void => {
+      log('Subscriptions to replay ', this.clientState!.uplinkSubscriptions.length)
+      this.clientState!.uplinkSubscriptions.forEach((s: any): void => {
         const m = JSON.stringify(Object.assign({}, {
           ...s,
           id: 'REPLAYED_SUBSCRIPTION'
@@ -57,7 +57,7 @@ class UplinkClient extends WebSocket {
       clearInterval(this.pingInterval)
 
       log('>> UplinkClient disconnected from ', endpoint)
-      if (this.clientState.closed) {
+      if (this.clientState!.closed) {
         log(`     -> Don't reconnect, client gone`)
       } else {
         if (this.closedOnPurpose) {
@@ -67,10 +67,9 @@ class UplinkClient extends WebSocket {
           this.emit('gone')
         }
       }
-      /**
-       * Todo: instruct parent to retry/find another host
-       */
-      // this.clientState.socket.close()
+
+      this.clientState = undefined
+      log.destroy()
     })
 
     this.on('message', data => {
@@ -78,11 +77,11 @@ class UplinkClient extends WebSocket {
 
       const firstPartOfMessage = data.toString().slice(0, 100).trim()
       if (!firstPartOfMessage.match(/(NEW_CONNECTION_TEST|CONNECTION_PING_TEST|REPLAYED_SUBSCRIPTION)/)) {
-        log.extend('Ws')('Message from ', endpoint, ':', firstPartOfMessage)
+        log('Message from ', endpoint, ':', firstPartOfMessage)
         metrics.messages.inc()
-        this.clientState.counters.rxCount++
-        this.clientState.counters.rxSize += data.toString().length
-        this.clientState.socket.send(data)
+        this.clientState!.counters.rxCount++
+        this.clientState!.counters.rxSize += data.toString().length
+        this.clientState!.socket.send(data)
       } else {
         if (firstPartOfMessage.match(/CONNECTION_PING_TEST/)) {
           clearTimeout(this.pongTimeout)
@@ -149,9 +148,9 @@ class UplinkClient extends WebSocket {
                 }
                 messageJson.id = undefined
               }
-              if (this.clientState.uplinkSubscriptions.length > 0) {
+              if (this.clientState!.uplinkSubscriptions.length > 0) {
                 // If last message equals current message, ignore it.
-                const subscriptionsString = this.clientState.uplinkSubscriptions.map(s => {
+                const subscriptionsString = this.clientState!.uplinkSubscriptions.map(s => {
                   return JSON.stringify(s)
                 })
                 const lastMessage = subscriptionsString.slice(-1)[0]
@@ -163,7 +162,7 @@ class UplinkClient extends WebSocket {
                 }
 
                 // Got no unsubscribes, so subscribes may be unique
-                if (this.clientState.uplinkSubscriptions.filter(s => {
+                if (this.clientState!.uplinkSubscriptions.filter(s => {
                   return s.command.toLowerCase() === 'unsubscribe'
                 }).length < 1) {
                   if (subscriptionsString.indexOf(thisMessageString) > -1) {
@@ -172,7 +171,7 @@ class UplinkClient extends WebSocket {
                 }
               }
               if (appendSubscription) {
-                this.clientState.uplinkSubscriptions.push(messageJson)
+                this.clientState!.uplinkSubscriptions.push(messageJson)
               }
             }
           }
@@ -185,7 +184,7 @@ class UplinkClient extends WebSocket {
     } else {
       if (!message.slice(0, 100).match(/NEW_CONNECTION_TEST|CONNECTION_PING_TEST|REPLAYED_SUBSCRIPTION/)) {
         log('UplinkClient sent message: UPLINK NOT CONNECTED YET. Added to buffer.')
-        this.clientState.uplinkMessageBuffer.push(message)
+        this.clientState!.uplinkMessageBuffer.push(message)
       }
     }
   }

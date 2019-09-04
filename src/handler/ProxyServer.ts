@@ -3,7 +3,7 @@
 import crypto from 'crypto'
 import Debug from 'debug'
 import WebSocket from 'ws'
-const log = Debug('app').extend('ProxyServer')
+const log = Debug('app')
 import * as remoteLogger from '../logging'
 import * as Config from '../config'
 import {Request} from 'express'
@@ -66,7 +66,7 @@ class ProxyServer {
     UplinkServers.filter(s => {
       return crypto.createHash('md5').update(s.endpoint).digest('hex') === uplink
     }).forEach(s => {
-      log.extend('updateUplinkServer')(`Marking uplink [ ${s.endpoint} ] - ${action.toUpperCase()}`)
+      log(`Marking uplink [ ${s.endpoint} ] - ${action.toUpperCase()}`)
       if (action === 'migrate') {
         s.healthy = false
         const clientsToMigrate = this.getClients().filter(c => {
@@ -74,7 +74,7 @@ class ProxyServer {
             && typeof c.uplink.url === 'string'
             && c.uplink.url === s.endpoint
         })
-        log.extend('MIGRATE')(`Migrating [ ${clientsToMigrate.length} clients ] away from ${s.endpoint}`)
+        log(`Migrating [ ${clientsToMigrate.length} clients ] away from ${s.endpoint}`)
         clientsToMigrate.forEach(c => {
           c.socket.emit('migrate')
         })
@@ -116,13 +116,13 @@ class ProxyServer {
       }
     }
     if (!clientState.closed) {
-      const newUplink = new UplinkClient(clientState, clientState.preferredServer)
+      let newUplink: UplinkClient | undefined = new UplinkClient(clientState, clientState.preferredServer)
       /**
        * 'gone' event only emits if NOT closed on purpose
        */
       newUplink.on('gone', () => {
         const thisUplink = UplinkServers.filter((r: any) => {
-          return r.endpoint === newUplink.url
+          return r.endpoint === newUplink!.url
         })
         if (thisUplink.length === 1) {
           thisUplink[0].errors++
@@ -135,6 +135,7 @@ class ProxyServer {
         log(`Uplink gone, retry in 2000ms to [ ${clientState.preferredServer} ]`)
 
         setTimeout(() => {
+          newUplink = undefined
           clientState.uplink = undefined
           clientState.counters.uplinkReconnects++
           log(`Reconnecting...`)
@@ -143,33 +144,40 @@ class ProxyServer {
         return
       })
 
+      newUplink.on('close', () => {
+        setTimeout(() => {
+          newUplink = undefined
+        }, 5000)
+      })
+
       newUplink.on('open', () => {
         if (typeof clientState.uplinkMessageBuffer !== 'undefined' && clientState.uplinkMessageBuffer.length > 0) {
           log('Replaying buffered messages:', clientState.uplinkMessageBuffer.length)
           clientState.uplinkMessageBuffer.forEach(m => {
-            newUplink.send(m)
+            newUplink!.send(m)
           })
           clientState.uplinkMessageBuffer = []
         }
 
-        newUplink.send(JSON.stringify({id: 'NEW_CONNECTION_TEST', command: 'ping'}))
+        newUplink!.send(JSON.stringify({id: 'NEW_CONNECTION_TEST', command: 'ping'}))
 
         const killNewUplinkTimeout = setTimeout(() => {
           try {
-            newUplink.close(0, 'ON_PURPOSE')
+            newUplink!.close(0, 'ON_PURPOSE')
+            newUplink = undefined
           } catch (e) {
             // Do nothing
           }
-          log.extend('Uplink')(`!!! No incoming message within 10 sec from new uplink ${newUplink.url}, close`)
+          log(`!!! No incoming message within 10 sec from new uplink ${newUplink!.url}, close`)
         }, 10 * 1000)
 
-        newUplink.once('message', m => {
-          log.extend('Uplink')(` >> Got first message from uplink. First health check OK.`)
+        newUplink!.once('message', m => {
+          log(` >> Got first message from uplink. First health check OK.`)
           clearTimeout(killNewUplinkTimeout)
 
-          if (clientState.uplinkCount === newUplink.getId()) {
+          if (clientState.uplinkCount === newUplink!.getId()) {
             if (typeof clientState.uplink !== 'undefined') {
-              log.extend('Uplink')(`Switch uplinks. ${clientState.uplink.url} disconnects, ${newUplink.url} connects`)
+              log(`Switch uplinks. ${clientState.uplink.url} disconnects, ${newUplink!.url} connects`)
               clientState.uplink.close(0, 'ON_PURPOSE')
               clientState.uplink = undefined
             }
@@ -177,10 +185,10 @@ class ProxyServer {
             // Uplink emits messages, switch the uplink
             clientState.uplink = newUplink
           } else {
-            log.extend('Uplink')(`${newUplink.url} connected, but id expired`
-              + ` (got ${newUplink.getId()}, is at ${clientState.uplinkCount}). Closing.`)
+            log(`${newUplink!.url} connected, but id expired`
+              + ` (got ${newUplink!.getId()}, is at ${clientState.uplinkCount}). Closing.`)
             try {
-              newUplink.close(0, 'ON_PURPOSE')
+              newUplink!.close(0, 'ON_PURPOSE')
             } catch (e) {
               // Do nothing
             }
@@ -201,7 +209,7 @@ class ProxyServer {
         ip = String(req.headers['x-forwarded-for'])
       }
 
-      const clientState: Client = {
+      let clientState: Client | undefined = {
         closed: false,
         uplinkType: 'basic',
         preferredServer: '',
@@ -252,15 +260,15 @@ class ProxyServer {
       })
 
       ws.on('migrate', () => {
-        clientState.preferredServer = this.getUplinkServer(clientState)
-        this.connectUplink(clientState)
+        clientState!.preferredServer = this.getUplinkServer(clientState!)
+        this.connectUplink(clientState!)
       })
 
       ws.on('message', (message: string) => {
         let relayMessage = true
-        log.extend('Ws')('Received request: %s', message)
-        clientState.counters.txCount++
-        clientState.counters.txSize += message.length
+        log('Received request: %s', message)
+        clientState!.counters.txCount++
+        clientState!.counters.txSize += message.length
 
         if (message.length <= 1024) {
           try {
@@ -269,26 +277,26 @@ class ProxyServer {
               relayMessage = false
               if (messageJson.__api === 'state') {
                 ws.send(JSON.stringify({
-                  endpoint: typeof clientState.uplink !== 'undefined' ? clientState.uplink.url : null,
-                  preferredServer: clientState.preferredServer,
-                  uplinkType: clientState.uplinkType,
-                  counters: clientState.counters,
-                  headers: clientState.headers,
-                  uplinkCount: clientState.uplinkCount,
-                  connectMoment: clientState.connectMoment
+                  endpoint: typeof clientState!.uplink !== 'undefined' ? clientState!.uplink.url : null,
+                  preferredServer: clientState!.preferredServer,
+                  uplinkType: clientState!.uplinkType,
+                  counters: clientState!.counters,
+                  headers: clientState!.headers,
+                  uplinkCount: clientState!.uplinkCount,
+                  connectMoment: clientState!.connectMoment
                 }))
               }
               if (messageJson.__api === 'upgrade') {
                 /**
                  * Todo: verification, payments, ...
                  */
-                clientState.uplinkType = 'priority'
+                clientState!.uplinkType = 'priority'
                 // clientState.preferredServer = this.getUplinkServer(clientState)
                 // this.connectUplink(clientState)
                 ws.emit('migrate')
               }
               if (messageJson.__api === 'downgrade') {
-                clientState.uplinkType = 'basic'
+                clientState!.uplinkType = 'basic'
                 // clientState.preferredServer = this.getUplinkServer(clientState)
                 // this.connectUplink(clientState)
                 ws.emit('migrate')
@@ -300,27 +308,34 @@ class ProxyServer {
         }
 
         if (relayMessage) {
-          if (typeof clientState.uplink !== 'undefined' && clientState.uplink.readyState === clientState.uplink.OPEN) {
-            clientState.uplink.send(message)
+          if (typeof clientState!.uplink !== 'undefined'
+            && clientState!.uplink.readyState === clientState!.uplink.OPEN) {
+            clientState!.uplink.send(message)
           } else {
             // BUFFER MESSAGE
-            clientState.uplinkMessageBuffer.push(message)
+            clientState!.uplinkMessageBuffer.push(message)
             log('Storing new buffered message')
           }
         }
       })
 
       ws.on('close', (code: number, reason: string) => {
-        clientState.closed = true
+        clientState!.closed = true
 
-        this.Clients.splice(this.Clients.indexOf(clientState), 1)
+        this.Clients.splice(this.Clients.indexOf(clientState!), 1)
         metrics.clients.set(this.Clients.length)
 
-        log.extend('Ws')('Closed socket @code', code, reason)
+        log('Closed socket @code', code, reason)
 
-        if (typeof clientState.uplink !== 'undefined') {
-          clientState.uplink.close()
+        if (typeof clientState!.uplink !== 'undefined') {
+          clientState!.uplink.close()
         }
+
+        clearInterval(pingInterval)
+        clearTimeout(pingTimeout)
+
+        clientState!.uplink = undefined
+        clientState = undefined
       })
     })
   }

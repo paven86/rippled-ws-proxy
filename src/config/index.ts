@@ -3,7 +3,7 @@
 import fs from 'fs'
 import path from 'path'
 import Debug from 'debug'
-const log = Debug('app').extend('config')
+const log = Debug('app')
 
 // TODO: pm2 process exit restarts..? Kill in some kind of precheck
 
