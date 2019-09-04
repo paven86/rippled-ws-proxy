@@ -11,6 +11,7 @@
     "watch": "tsc -w",
     "pm2": "pm2 reload pm2.config.js --env pm2",
     "dev": "npm run build;PORT=4000 DEBUG=app* nodemon dist/index.js",
+    "pull": "git pull && npm run build && npm run pm2 && pm2 monit",
     "inspect": "npm run build;PORT=4000 node --inspect dist/index.js",
     "inspectverbose": "npm run build;PORT=4000 DEBUG=app* node --inspect dist/index.js",
     "test": "jest --ci --verbose",
