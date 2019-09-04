@@ -5,6 +5,8 @@ import path from 'path'
 import Debug from 'debug'
 const log = Debug('app').extend('config')
 
+// TODO: pm2 process exit restarts..? Kill in some kind of precheck
+
 const get = () => {
   let config
 
