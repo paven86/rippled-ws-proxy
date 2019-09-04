@@ -160,8 +160,8 @@ class ProxyServer {
           } catch (e) {
             // Do nothing
           }
-          log.extend('Uplink')(`!!! No incoming message within 5000ms from new uplink ${newUplink.url}, close`)
-        }, 5000)
+          log.extend('Uplink')(`!!! No incoming message within 10 sec from new uplink ${newUplink.url}, close`)
+        }, 10 * 1000)
 
         newUplink.once('message', m => {
           log.extend('Uplink')(` >> Got first message from uplink. First health check OK.`)
@@ -196,6 +196,11 @@ class ProxyServer {
 
   init (): void {
     this.WebSocketServer.on('connection', (ws: WebSocket, req: Request) => {
+      let ip: string = req.connection.remoteAddress || ''
+      if (String(req.headers['x-forwarded-for']) !== '') {
+        ip = String(req.headers['x-forwarded-for'])
+      }
+
       const clientState: Client = {
         closed: false,
         uplinkType: 'basic',
@@ -204,7 +209,7 @@ class ProxyServer {
         request: req,
         uplinkMessageBuffer: [],
         uplinkSubscriptions: [],
-        ip: String(req.headers['x-forwarded-for'] || req.connection.remoteAddress),
+        ip: ip,
         connectMoment: new Date(),
         counters: {rxCount:0, txCount:0, rxSize:0, txSize: 0, uplinkReconnects: 0},
         uplinkCount: 0,
@@ -230,6 +235,21 @@ class ProxyServer {
       //  headers: clientState.headers},
       //  remoteLogger.Severity.INFO
       // )
+
+      const pingInterval = setInterval(() => {
+        ws.ping()
+        // log('sendping')
+      }, 15 * 1000)
+
+      let pingTimeout: any
+      ws.on('pong', () => {
+        // log('gotpong')
+        clearTimeout(pingTimeout)
+        pingTimeout = setTimeout(() => {
+          log('No pong for 2 (15 sec) intervals')
+          ws.terminate()
+        }, 2 * 15 * 1000)
+      })
 
       ws.on('migrate', () => {
         clientState.preferredServer = this.getUplinkServer(clientState)
