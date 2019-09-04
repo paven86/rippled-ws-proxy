@@ -20,7 +20,7 @@ class UplinkClient extends WebSocket {
 
   constructor (clientState: Client, endpoint: string) {
     // super(UplinkServers.basic)
-    super(endpoint, {headers: {'X-Forwarded-For': clientState.ip}})
+    super(endpoint, {headers: {'X-Forwarded-For': clientState.ip, 'X-User': clientState.ip}})
 
     log(`Construct new UplinkClient to ${endpoint}`)
 
@@ -92,6 +92,10 @@ class UplinkClient extends WebSocket {
           }, 15 * 1000)
         }
       }
+    })
+
+    this.on('ping', () => {
+      this.pong()
     })
 
     this.on('error', error => {
