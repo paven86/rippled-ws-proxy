@@ -1,0 +1,68 @@
+{
+  "name": "rippled-ws-proxy",
+  "version": "0.1.0",
+  "description": "rippled websocket proxy",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prepublish": "npm run clean && npm run lint && npm run test && npm run build",
+    "clean": "rm -rf dist",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "pm2": "pm2 reload pm2.config.js --env pm2",
+    "dev": "npm run build;PORT=4000 DEBUG=app* nodemon dist/index.js",
+    "inspect": "npm run build;PORT=4000 DEBUG=app* node --inspect dist/index.js",
+    "test": "jest --ci --verbose",
+    "testdebug": "clear;DEBUG=app* ./node_modules/jest/bin/jest.js --verbose",
+    "testverbose": "npm run testdebug",
+    "lint": "tslint -p ./"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts"
+  ],
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "@google-cloud/logging": "^5.2.0",
+    "@pm2/io": "^4.2.6",
+    "@types/cors": "^2.8.5",
+    "@types/helmet": "0.0.43",
+    "cors": "^2.8.5",
+    "debug": "^4.1.1",
+    "express": "^4.17.1",
+    "helmet": "^3.20.0",
+    "ws": "^7.1.1"
+  },
+  "devDependencies": {
+    "@types/debug": "^4.1.4",
+    "@types/express": "^4.17.0",
+    "@types/jest": "^24.0.13",
+    "@types/node": "^12.6.8",
+    "@types/ws": "^6.0.1",
+    "jest": "^24.8.0",
+    "ts-jest": "^24.0.2",
+    "tslint": "^5.18.0",
+    "tslint-eslint-rules": "^5.4.0",
+    "typescript": "^3.5.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/WietseWind/rippled-ws-proxy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WietseWind/rippled-ws-proxy/issues"
+  },
+  "homepage": "https://github.com/WietseWind/rippled-ws-proxy#readme",
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "keywords": [
+    "xrp",
+    "xrpl-ledger",
+    "proxy",
+    "websocket",
+    "rippled"
+  ]
+}
