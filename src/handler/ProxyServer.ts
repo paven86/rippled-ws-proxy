@@ -31,11 +31,15 @@ type UplinkServer = {
   id?: string
 }
 
+/**
+ * Todo: UplinkServers from config
+ */
+
 const UplinkServers: Array<UplinkServer> = [
   {type: 'fallback', endpoint: 'wss://s2.ripple.com/#fallback', healthy: true, errors: 0},
-  {type: 'basic', endpoint: 'wss://rippled-livenet.xrpl-labs.com/#basic', healthy: true, errors: 0},
+  // {type: 'basic', endpoint: 'wss://rippled-livenet.xrpl-labs.com/#basic', healthy: true, errors: 0},
   {type: 'basic', endpoint: 'wss://s2.ripple.com', healthy: true, errors: 0},
-  {type: 'priority', endpoint: 'wss://rippled-livenet.xrpl-labs.com/#priority', healthy: true, errors: 0},
+  // {type: 'priority', endpoint: 'wss://rippled-livenet.xrpl-labs.com/#priority', healthy: true, errors: 0},
   {type: 'priority', endpoint: 'wss://rippled.xrptipbot.com', healthy: true, errors: 0}
 ]
 
@@ -220,7 +224,7 @@ class ProxyServer {
       log(`New connection from [ ${clientState.ip} ], origin: [ ${clientState.headers.origin || ''} ]`)
 
       this.connectUplink(clientState)
-      
+
       this.Clients.push(clientState)
       metrics.connections.inc()
       metrics.clients.set(this.Clients.length)
@@ -295,7 +299,7 @@ class ProxyServer {
 
         this.Clients.splice(this.Clients.indexOf(clientState), 1)
         metrics.clients.set(this.Clients.length)
-        
+
         log.extend('Ws')('Closed socket @code', code, reason)
 
         if (typeof clientState.uplink !== 'undefined') {
