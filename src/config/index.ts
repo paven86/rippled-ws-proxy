@@ -31,6 +31,16 @@ const get = () => {
 
   try {
     config = JSON.parse(typeof config === 'undefined' ? '' : config.toString())
+    if (typeof config.uplinks === 'undefined') {
+      config.uplinks = [
+        {
+          type: 'fallback',
+          endpoint: 'wss://s2.ripple.com/#fallback'
+        }
+      ]
+    }
+    config.uplinks.push({type: 'basic', endpoint: 'wss://s2.ripple.com/#basic', healthy: false})
+    config.uplinks.push({type: 'priority', endpoint: 'wss://s2.ripple.com/#priority', healthy: false})
   } catch (e) {
     log('Cannot read JSON from config:', e.message)
     process.exit(1)

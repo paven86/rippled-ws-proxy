@@ -35,7 +35,8 @@ type UplinkServer = {
 // TODO: ugly, async, etc.
 const UplinkServers: Array<UplinkServer> = Config.get().uplinks.map((u: any) => {
   return Object.assign(u, {
-    healthy: true, errors: 0
+    healthy: typeof u.healthy === 'boolean' ? u.healthy : true,
+    errors: 0
   })
 })
 
