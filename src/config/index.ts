@@ -11,7 +11,7 @@ const get = () => {
   log('Getting...')
 
   try {
-    config = fs.readFileSync(path.resolve(__dirname, '..', '..', 'config.jsonxx'))
+    config = fs.readFileSync(path.resolve(__dirname, '..', '..', 'config.json'))
     log('Got config from [ config.json ]')
   } catch (e) {
     log(`Config not found (config.json, (${e.message})), trying default config...`)
