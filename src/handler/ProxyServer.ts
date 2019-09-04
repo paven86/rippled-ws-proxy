@@ -5,6 +5,7 @@ import Debug from 'debug'
 import WebSocket from 'ws'
 const log = Debug('app').extend('ProxyServer')
 import * as remoteLogger from '../logging'
+import * as Config from '../config'
 import {Request} from 'express'
 import {UplinkClient} from './'
 import {Client} from './types'
@@ -31,17 +32,12 @@ type UplinkServer = {
   id?: string
 }
 
-/**
- * Todo: UplinkServers from config
- */
-
-const UplinkServers: Array<UplinkServer> = [
-  {type: 'fallback', endpoint: 'wss://s2.ripple.com/#fallback', healthy: true, errors: 0},
-  // {type: 'basic', endpoint: 'wss://rippled-livenet.xrpl-labs.com/#basic', healthy: true, errors: 0},
-  {type: 'basic', endpoint: 'wss://s2.ripple.com', healthy: true, errors: 0},
-  // {type: 'priority', endpoint: 'wss://rippled-livenet.xrpl-labs.com/#priority', healthy: true, errors: 0},
-  {type: 'priority', endpoint: 'wss://rippled.xrptipbot.com', healthy: true, errors: 0}
-]
+// TODO: ugly, async, etc.
+const UplinkServers: Array<UplinkServer> = Config.get().uplinks.map((u: any) => {
+  return Object.assign(u, {
+    healthy: true, errors: 0
+  })
+})
 
 /**
  * TODO: soft-force all clients connected to a specific UplinkServer to

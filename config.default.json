@@ -1,0 +1,7 @@
+{
+    "uplinks": [
+        { "type": "fallback", "endpoint": "wss://s2.ripple.com/#fallback"},
+        { "type": "basic", "endpoint": "wss://s2.ripple.com"},
+        { "type": "priority", "endpoint": "wss://rippled.xrptipbot.com"}
+    ]
+}
