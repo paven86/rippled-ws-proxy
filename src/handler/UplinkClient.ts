@@ -20,7 +20,7 @@ class UplinkClient extends WebSocket {
 
   constructor (clientState: Client, endpoint: string) {
     // super(UplinkServers.basic)
-    super(endpoint)
+    super(endpoint, {headers: {'X-Forwarded-For': clientState.ip}})
 
     log(`Construct new UplinkClient to ${endpoint}`)
 
