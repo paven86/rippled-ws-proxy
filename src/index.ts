@@ -7,7 +7,6 @@ import WebSocket from 'ws'
 import {ProxyServer, HttpServer} from './handler'
 
 if (typeof process.env.JEST_WORKER_ID === 'undefined') {
-  process.stdout.write(`\u001b[2J\u001b[0;0H`)
   process.stdout.write(`<<< rippled-ws-proxy >>>\n\n`)
 }
 
