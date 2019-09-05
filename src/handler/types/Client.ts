@@ -16,6 +16,7 @@ type Subscription = {
 }
 
 type Client = {
+  id: number
   closed: boolean
   uplinkType: string
   preferredServer: string

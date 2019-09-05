@@ -12,6 +12,8 @@ import {UplinkClient} from './'
 import {Client} from './types'
 import io from '@pm2/io'
 
+let connectionId = 0
+
 const metrics = {
   connections: io.counter({name: '∑ connections'}),
   clients: io.metric({name: '# clients'})
@@ -143,13 +145,13 @@ class ProxyServer {
          * Select new uplink server (RR)
          */
         clientState.preferredServer = this.getUplinkServer(clientState)
-        log(`Uplink gone, retry in 2000ms to [ ${clientState.preferredServer} ]`)
+        log(`{${clientState!.id}} Uplink gone, retry in 2000ms to [ ${clientState.preferredServer} ]`)
 
         setTimeout(() => {
           newUplink = undefined
           clientState.uplink = undefined
           clientState.counters.uplinkReconnects++
-          log(`Reconnecting...`)
+          log(`{${clientState!.id}} Reconnecting...`)
           this.connectUplink(clientState)
         }, 2000)
         return
@@ -163,7 +165,7 @@ class ProxyServer {
 
       newUplink.on('open', () => {
         if (typeof clientState.uplinkMessageBuffer !== 'undefined' && clientState.uplinkMessageBuffer.length > 0) {
-          log('Replaying buffered messages:', clientState.uplinkMessageBuffer.length)
+          log('{${clientState!.id}} Replaying buffered messages:', clientState.uplinkMessageBuffer.length)
           clientState.uplinkMessageBuffer.forEach(m => {
             newUplink!.send(m)
           })
@@ -179,16 +181,17 @@ class ProxyServer {
           } catch (e) {
             // Do nothing
           }
-          log(`!!! No incoming message within 10 sec from new uplink ${newUplink!.url}, close`)
+          log(`{${clientState!.id}} !!! No incoming message within 10 sec from new uplink ${newUplink!.url}, close`)
         }, 10 * 1000)
 
         newUplink!.once('message', m => {
-          log(` >> Got first message from uplink. First health check OK.`)
+          log(`{${clientState!.id}} >> Got first message from uplink. First health check OK.`)
           clearTimeout(killNewUplinkTimeout)
 
           if (clientState.uplinkCount === newUplink!.getId()) {
             if (typeof clientState.uplink !== 'undefined') {
-              log(`Switch uplinks. ${clientState.uplink.url} disconnects, ${newUplink!.url} connects`)
+              log(`{${clientState!.id}} Switch uplinks. ` +
+                `${clientState.uplink.url} disconnects, ${newUplink!.url} connects`)
               clientState.uplink.close(0, 'ON_PURPOSE')
               clientState.uplink = undefined
             }
@@ -196,7 +199,7 @@ class ProxyServer {
             // Uplink emits messages, switch the uplink
             clientState.uplink = newUplink
           } else {
-            log(`${newUplink!.url} connected, but id expired`
+            log(`{${clientState!.id}} ${newUplink!.url} connected, but id expired`
               + ` (got ${newUplink!.getId()}, is at ${clientState.uplinkCount}). Closing.`)
             try {
               newUplink!.close(0, 'ON_PURPOSE')
@@ -215,12 +218,15 @@ class ProxyServer {
 
   init (): void {
     this.WebSocketServer.on('connection', (ws: WebSocket, req: Request) => {
+      connectionId++
+
       let ip: string = req.connection.remoteAddress || ''
       if (String(req.headers['x-forwarded-for']) !== '') {
         ip = String(req.headers['x-forwarded-for'])
       }
 
       let clientState: Client | undefined = {
+        id: connectionId,
         closed: false,
         uplinkType: 'basic',
         preferredServer: '',
@@ -241,7 +247,8 @@ class ProxyServer {
       }
       clientState.preferredServer = this.getUplinkServer(clientState)
 
-      log(`New connection from [ ${clientState.ip} ], origin: [ ${clientState.headers.origin || ''} ]`)
+      log(`{${clientState!.id}} New connection from [ ${clientState.ip} ], ` +
+        `origin: [ ${clientState.headers.origin || ''} ]`)
 
       this.connectUplink(clientState)
 
@@ -277,7 +284,7 @@ class ProxyServer {
 
       ws.on('message', (message: string) => {
         let relayMessage = true
-        logMsg('Received request: %s', message)
+        logMsg(`{${clientState!.id}} Received request: %s`, message)
         clientState!.counters.txCount++
         clientState!.counters.txSize += message.length
 
@@ -325,7 +332,7 @@ class ProxyServer {
           } else {
             // BUFFER MESSAGE
             clientState!.uplinkMessageBuffer.push(message)
-            log('Storing new buffered message')
+            log(`{${clientState!.id}} Storing new buffered message`)
           }
         }
       })
@@ -333,10 +340,18 @@ class ProxyServer {
       ws.on('close', (code: number, reason: string) => {
         clientState!.closed = true
 
-        this.Clients.splice(this.Clients.indexOf(clientState!), 1)
-        metrics.clients.set(this.Clients.length)
+        const thisClient = this.Clients.filter(c => {
+          return c.socket === ws
+        })
 
-        log('Closed socket @code', code, reason)
+        if (thisClient.length === 1) {
+          this.Clients.splice(this.Clients.indexOf(thisClient[0]), 1)
+          metrics.clients.set(this.Clients.length)
+        } else {
+          log(`!!! ERROR! CANNOT SPLICE CLIENTS FOR CLIENT WITH ID [ ${clientState!.id} ]`)
+        }
+
+        log(`{${clientState!.id}} Closed socket @code`, code, reason)
 
         if (typeof clientState!.uplink !== 'undefined') {
           clientState!.uplink.close()

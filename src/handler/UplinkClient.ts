@@ -23,7 +23,7 @@ class UplinkClient extends WebSocket {
     // super(UplinkServers.basic)
     super(endpoint, {headers: {'X-Forwarded-For': clientState.ip, 'X-User': clientState.ip}})
 
-    log(`Construct new UplinkClient to ${endpoint}`)
+    log(`{${clientState!.id}} ` + `Construct new UplinkClient to ${endpoint}`)
 
     this.clientState = clientState
     this.id = clientState.uplinkCount + 1
@@ -41,8 +41,8 @@ class UplinkClient extends WebSocket {
       }, 2500)
 
 
-      log('UplinkClient connected to ', endpoint)
-      log('Subscriptions to replay ', this.clientState!.uplinkSubscriptions.length)
+      log(`{${clientState!.id}} ` + 'UplinkClient connected to ', endpoint)
+      log(`{${clientState!.id}} ` + 'Subscriptions to replay ', this.clientState!.uplinkSubscriptions.length)
       this.clientState!.uplinkSubscriptions.forEach((s: any): void => {
         const m = JSON.stringify(Object.assign({}, {
           ...s,
@@ -57,14 +57,15 @@ class UplinkClient extends WebSocket {
       clearTimeout(this.pongTimeout)
       clearInterval(this.pingInterval)
 
-      log('>> UplinkClient disconnected from ', endpoint)
+      log(`{${clientState!.id}} ` + '>> UplinkClient disconnected from ', endpoint)
       if (this.clientState!.closed) {
-        log(`     -> Don't reconnect, client gone`)
+        log(`{${clientState!.id}} ` + `     -> Don't reconnect, client gone`)
       } else {
         if (this.closedOnPurpose) {
-          log('     -> On purpose :)')
+          log(`{${clientState!.id}} ` + '     -> On purpose :)')
         } else {
-          log('     -> [NOT ON PURPOSE] Client still here - Instruct parent to find new uplink')
+          log(`{${clientState!.id}} ` +
+            '     -> [NOT ON PURPOSE] Client still here - Instruct parent to find new uplink')
           this.emit('gone')
         }
       }
@@ -78,7 +79,7 @@ class UplinkClient extends WebSocket {
 
       const firstPartOfMessage = data.toString().slice(0, 100).trim()
       if (!firstPartOfMessage.match(/(NEW_CONNECTION_TEST|CONNECTION_PING_TEST|REPLAYED_SUBSCRIPTION)/)) {
-        logMsg('Message from ', endpoint, ':', firstPartOfMessage)
+        logMsg(`{${clientState!.id}} ` + 'Message from ', endpoint, ':', firstPartOfMessage)
         metrics.messages.inc()
         this.clientState!.counters.rxCount++
         this.clientState!.counters.rxSize += data.toString().length
@@ -87,7 +88,8 @@ class UplinkClient extends WebSocket {
         if (firstPartOfMessage.match(/CONNECTION_PING_TEST/)) {
           clearTimeout(this.pongTimeout)
           this.pongTimeout = setTimeout(() => {
-            log(`!! Not received a PONG for some time (15sec), assume uplink ${endpoint} GONE`)
+            log(`{${clientState!.id}} ` +
+              `!! Not received a PONG for some time (15sec), assume uplink ${endpoint} GONE`)
             this.close()
           }, 15 * 1000)
         }
@@ -104,7 +106,7 @@ class UplinkClient extends WebSocket {
       clearInterval(this.pingInterval)
 
       if (!error.message.match(/closed before.+established/)) {
-        log('UPLINK CONNECTION ERROR', endpoint, ': ', error.message)
+        log(`{${clientState!.id}} ` + 'UPLINK CONNECTION ERROR', endpoint, ': ', error.message)
       }
     })
 
@@ -122,7 +124,7 @@ class UplinkClient extends WebSocket {
     try {
       super.close()
     } catch (e) {
-      log('!! WS Close ERROR', e.message)
+      log(`{${this.clientState!.id}} ` + '!! WS Close ERROR', e.message)
     }
   }
 
