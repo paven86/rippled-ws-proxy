@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import Debug from 'debug'
 import WebSocket from 'ws'
 const log = Debug('app')
+const logMsg = log.extend('msg')
 import * as remoteLogger from '../logging'
 import * as Config from '../config'
 import {Request} from 'express'
@@ -276,7 +277,7 @@ class ProxyServer {
 
       ws.on('message', (message: string) => {
         let relayMessage = true
-        log('Received request: %s', message)
+        logMsg('Received request: %s', message)
         clientState!.counters.txCount++
         clientState!.counters.txSize += message.length
 

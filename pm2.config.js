@@ -7,7 +7,7 @@ module.exports = {
     exec_mode: 'cluster',
     ignore_watch: ["node_modules", "db", ".git"],
     env: {
-      DEBUG: 'app*'
+      DEBUG: 'app'
     },
     env_pm2: {
       NODE_ENV: 'pm2',

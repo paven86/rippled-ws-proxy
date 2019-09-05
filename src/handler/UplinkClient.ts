@@ -3,6 +3,7 @@
 import Debug from 'debug'
 import WebSocket from 'ws'
 const log = Debug('app')
+const logMsg = log.extend('msg')
 import {Client} from './types'
 import io from '@pm2/io'
 
@@ -77,7 +78,7 @@ class UplinkClient extends WebSocket {
 
       const firstPartOfMessage = data.toString().slice(0, 100).trim()
       if (!firstPartOfMessage.match(/(NEW_CONNECTION_TEST|CONNECTION_PING_TEST|REPLAYED_SUBSCRIPTION)/)) {
-        log('Message from ', endpoint, ':', firstPartOfMessage)
+        logMsg('Message from ', endpoint, ':', firstPartOfMessage)
         metrics.messages.inc()
         this.clientState!.counters.rxCount++
         this.clientState!.counters.rxSize += data.toString().length
