@@ -272,7 +272,7 @@ class ProxyServer {
         // log('gotpong')
         clearTimeout(pingTimeout)
         pingTimeout = setTimeout(() => {
-          log('No pong for 2 (15 sec) intervals')
+          log(`{${clientState!.id}} ` + 'No pong for 2 (15 sec) intervals')
           ws.terminate()
         }, 2 * 15 * 1000)
       })
