@@ -17,6 +17,7 @@
     "test": "jest --ci --verbose",
     "testdebug": "clear;DEBUG=app* ./node_modules/jest/bin/jest.js --verbose",
     "testverbose": "npm run testdebug",
+    "loadtest": "node_modules/artillery/bin/artillery run loadtest.yml",
     "lint": "tslint -p ./"
   },
   "files": [
@@ -44,6 +45,7 @@
     "@types/jest": "^24.0.13",
     "@types/node": "^12.6.8",
     "@types/ws": "^6.0.1",
+    "artillery": "^1.6.0-28",
     "jest": "^24.8.0",
     "ts-jest": "^24.0.2",
     "tslint": "^5.18.0",
